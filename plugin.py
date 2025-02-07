@@ -33,8 +33,16 @@ logger = logging.getLogger("Unmanic.Plugin.reorder_subtitle_streams_by_language"
 class Settings(PluginSettings):
     settings = {
         "Search String": "en",
+        "Set as Default": False,
     }
 
+    def __init__(self, *args, **kwargs):
+        super(Settings, self).__init__(*args, **kwargs)
+        self.form_settings = {
+            "Search String": {
+                "label": "Enter language code to move to 1st subtitle stream (likely a 3 letter code)"
+            }
+        }
 
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
@@ -87,14 +95,19 @@ class PluginStreamMapper(StreamMapper):
             'attachment': 't'
         }
         codec_type = stream_info.get('codec_type').lower()
+        
+        set_as_default = self.settings.get_setting('Set as Default')
 
         if codec_type == self.stream_type:
             # Process streams of interest
             self.found_search_string_streams = True
             if self.test_tags_for_search_string(stream_info.get('tags')):
-                self.search_string_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id)]
+                disposition = '0'
+                if len(self.search_string_stream_mapping) == 0 and set_as_default:
+                    disposition = 'default'
+                self.search_string_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id), '-disposition:{}:{}'.format(ident.get(codec_type), stream_id), disposition]
             else:
-                self.unmatched_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id)]
+                self.unmatched_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id), '-disposition:{}:{}'.format(ident.get(codec_type), stream_id), '0']
         else:
             # Process streams not of interest
             if not self.found_search_string_streams:
